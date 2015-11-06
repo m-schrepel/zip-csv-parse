@@ -1,10 +1,17 @@
+
 if (Meteor.isClient) {
   Checkins = new Mongo.Collection('checkins')
 
-  Template.hello.events({
+  Template.main.helpers({
+    getCountries(){
+      return Checkins.find().fetch()
+    }
+  })
+
+  Template.upload.events({
     'change #file': function (e) {
       let file = e.target.files[0]
-      console.log('input zip', file)
+      // start the promise chain
       return new Promise((resolve, reject) => {
         let reader = new FileReader();
         reader.onerror = reject;
@@ -13,29 +20,32 @@ if (Meteor.isClient) {
       })
       .then((arrayBuffer) => new JSZip(arrayBuffer))
       .then((zip)=>{
-        console.log('zip after jszip', zip.files)
         let files = zip.files
-        let fileArr = [];
+        let fileArr = []
         for(let key in files){
           // hah. It's a silly face
           if(key.indexOf('_')<0){
+            // we'd like to avoid the __ and _ file names and
+            // only grab the ones we want
             fileArr.push(files[key])
           }
         }
         return fileArr
       })
       .then((files)=>{
-        console.log('filesArr', files)
+        // turn the zip file into an array buffer
         return Promise.all(files.map((file)=>file.asUint8Array()))
       })
       .then((csv)=>{
-        console.log('fielesBuffer', csv)
+        // turn the arrayBuffer into text
         let decoder = new TextDecoder()
+        // concat the arrays
         text = csv.map((a)=>decoder.decode(a))
-          .reduce((string, csv)=>{
+          .reduce((string, csv, self)=>{
             string+=csv
             return string
           },"")
+        // call the server to update the collection
         Meteor.call('csvToCollection', text)
       })
 
@@ -47,8 +57,12 @@ if (Meteor.isClient) {
 
 if (Meteor.isServer) {
   let Checkins = new Mongo.Collection('checkins')
+  Checkins._ensureIndex({Name: 1}, {unique:1});
   Meteor.methods({
     'csvToCollection':function(csv){
+      // clear the collection each time
+      Checkins.remove({})
+      // add stuff to the collection
       c2c.addCsvStringToCollection(Checkins, csv)
     }
   })

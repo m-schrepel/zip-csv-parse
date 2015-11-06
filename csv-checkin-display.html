@@ -3,14 +3,18 @@
 </head>
 
 <body>
-  <h1>Welcome to Meteor!</h1>
-
-  {{> hello}}
+  {{> Template.dynamic template=template}}
 </body>
 
-<template name="hello">
+<template name="upload">
   <label for="file">
     upload your zip here
     <input type="file" id="file">
   </label>
+</template>
+
+<template name="main">
+  {{#each getCountries}}
+    <p class="country">{{Name}} - {{Code}}</p>
+  {{/each}}
 </template>
