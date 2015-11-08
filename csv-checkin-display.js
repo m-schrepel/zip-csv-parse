@@ -1,10 +1,29 @@
 
 if (Meteor.isClient) {
+  // I don't really like modifying the array prototype
+  function removeDuplicates(objectsArray) {
+    var usedObjects = {};
+
+    for (var i=objectsArray.length - 1;i>=0;i--) {
+        var so = JSON.stringify(objectsArray[i]);
+
+        if (usedObjects[so]) {
+            objectsArray.splice(i, 1);
+
+        } else {
+            usedObjects[so] = true;
+        }
+    }
+
+    return objectsArray;
+
+  }
+
   Checkins = new Mongo.Collection('checkins')
 
   Template.main.helpers({
     getCountries(){
-      return Checkins.find().fetch()
+      return Checkins.find({},{sort:{Name:-1}}).fetch()
     }
   })
 
@@ -45,8 +64,12 @@ if (Meteor.isClient) {
             string+=csv
             return string
           },"")
+        // parse the strings into JSON
+        let csvJSONArray = Papa.parse(text,{header:true})
+        csvJSONArray = removeDuplicates(csvJSONArray.data)
         // call the server to update the collection
-        Meteor.call('csvToCollection', text)
+        Meteor.call('updateCollection', csvJSONArray.splice(1), (err,res)=>$('body').prepend(`<h1>Done!</h1>`))
+
       })
 
       .catch((e)=>console.log(e.stack, e.message))
@@ -57,13 +80,14 @@ if (Meteor.isClient) {
 
 if (Meteor.isServer) {
   let Checkins = new Mongo.Collection('checkins')
-  Checkins._ensureIndex({Name: 1}, {unique:1});
   Meteor.methods({
-    'csvToCollection':function(csv){
+    'updateCollection':function(arr){
       // clear the collection each time
       Checkins.remove({})
       // add stuff to the collection
-      c2c.addCsvStringToCollection(Checkins, csv)
+      return arr.map((doc)=>Checkins.insert(doc))
+      // fix this collection on the server
+      // grab the array of the collection
     }
   })
 }
